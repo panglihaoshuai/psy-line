@@ -1,0 +1,68 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "psy-line"
+version = "0.1.0"
+description = "Reddit sentiment trading signal MCP Server for Hermes Agent"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+authors = [
+    { name = "PSY_line" }
+]
+keywords = ["mcp", "reddit", "sentiment", "trading", "crypto", "hermes"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+
+dependencies = [
+    "mcp>=1.0.0,<2.0.0",
+    "python-binance>=1.0.0,<2.0.0",
+    "pydantic>=2.0.0,<3.0.0",
+    "pyyaml>=6.0.0,<7.0.0",
+    "requests>=2.31.0,<3.0.0",
+    "feedparser>=6.0.0,<7.0.0",
+    "vaderSentiment>=3.3.2,<4.0.0",
+    "pytest>=8.0.0,<9.0.0",
+    "pytest-asyncio>=0.23.0,<1.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "pytest-mock>=3.12.0",
+    "ruff>=0.3.0",
+    "mypy>=1.8.0",
+]
+all = [
+    "pytrends>=4.9.0,<5.0.0",
+]
+
+[project.scripts]
+psy-line = "psy_line.main:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/psy_line"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true

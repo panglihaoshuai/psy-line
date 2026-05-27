@@ -1,0 +1,45 @@
+# =============================================================================
+# PSY_line — Hermes Agent Plugin Configuration
+# =============================================================================
+# Place this file at ~/.hermes/config.yaml or merge into existing config.
+#
+# PSY_line is an MCP Server that provides crypto retail behavior signals.
+# Hermes connects to it via MCP protocol — zero code integration.
+#
+# Prerequisites:
+# 1. Install: pip install psy-line
+# 2. Or run from source: python -m psy_line.main
+# 3. Set env vars (optional):
+#    - BINANCE_API_KEY / BINANCE_SECRET_KEY (for price data)
+#    - MINIMAX_API_KEY / MINIMAX_GROUP_ID (for MiniMax LLM)
+#    - PSY_LINE_CONFIG (path to config.yaml, optional)
+# =============================================================================
+
+mcp_servers:
+  psy_line:
+    # Command to start PSY_line MCP Server
+    command: python
+    args:
+      - -m
+      - psy_line.main
+    # Environment variables (override defaults)
+    env:
+      MINIMAX_API_KEY: "${MINIMAX_API_KEY}"
+      MINIMAX_GROUP_ID: "${MINIMAX_GROUP_ID}"
+      BINANCE_API_KEY: "${BINANCE_API_KEY}"
+      BINANCE_SECRET_KEY: "${BINANCE_SECRET_KEY}"
+
+    # Tools exposed by PSY_line (auto-discovered via MCP list_tools)
+    # After loading, Hermes will see:
+    #   - run_behavior_scan  — scan symbol for retail behavior signal
+    #   - get_quota_status   — check MiniMax API quota remaining
+    #   - backtest_signals   — run backtest on historical data
+
+# === Memory Provider (Optional) ===
+# PSY_line can provide a MemoryProvider for storing sentiment history.
+# Uncomment to enable:
+# memory:
+#   provider: psy_line
+#   psy_line:
+#     mcp_server: psy_line
+#     collection: sentiment_history

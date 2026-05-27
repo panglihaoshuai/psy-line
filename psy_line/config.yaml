@@ -1,0 +1,40 @@
+reddit:
+  client_id: "${REDDIT_CLIENT_ID}"
+  client_secret: "${REDDIT_CLIENT_SECRET}"
+  user_agent: "PSY_line/1.0 (Trading Bot)"
+  # Keywords for filtering comments (optional)
+  keywords:
+    - bitcoin
+    - btc
+    - eth
+    - ethereum
+    - crypto
+    - sol
+    - solana
+    - doge
+  keywords_mode: "include"  # "include" = only keep matching, "exclude" = remove matching
+
+openai:
+  api_key: "${OPENAI_API_KEY}"
+  model: "gpt-4o"
+  batch_size: 30
+  max_requests_per_minute: 20
+
+binance:
+  api_key: "${BINANCE_API_KEY}"
+  secret_key: "${BINANCE_SECRET_KEY}"
+  testnet: true
+
+subreddits:
+  - CryptoCurrency
+  - SatoshiBets
+  - Bitcoin
+  - ethereum
+  - SOLMarkets
+  - ethtrader
+
+trading:
+  symbol: "BTCUSDT"
+  buy_threshold: -0.6
+  sell_threshold: 0.6
+  position_size: 0.1
