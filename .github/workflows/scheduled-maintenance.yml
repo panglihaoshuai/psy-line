@@ -1,0 +1,226 @@
+# PSY_line Scheduled Maintenance
+# Automated CI/CD operations
+
+name: Scheduled Maintenance
+
+on:
+  schedule:
+    # 每天凌晨 2:00 UTC (北京时间 10:00) - 夜间构建
+    - cron: '0 2 * * *'
+    
+    # 每周一凌晨 3:00 UTC (北京时间 11:00) - 依赖检查
+    - cron: '0 3 * * 1'
+    
+    # 每月1号凌晨 4:00 UTC (北京时间 12:00) - 安全审计
+    - cron: '0 4 1 * *'
+  
+  # 允许手动触发
+  workflow_dispatch:
+    inputs:
+      job_type:
+        description: 'Job type to run'
+        required: true
+        default: 'nightly'
+        type: choice
+        options:
+          - nightly
+          - dependency-check
+          - security-audit
+          - all
+
+env:
+  PYTHON_VERSION: '3.12'
+
+jobs:
+  # ============================================
+  # 夜间构建 - 每天运行
+  # ============================================
+  nightly-build:
+    name: 🌙 Nightly Build
+    if: github.event.schedule == '0 2 * * *' || github.event.inputs.job_type == 'nightly' || github.event.inputs.job_type == 'all'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      
+      - name: Install dependencies
+        run: |
+          cd psy_line
+          pip install -e ".[dev]"
+      
+      - name: Run all tests
+        run: |
+          cd psy_line
+          python -m pytest tests/ -v --tb=short --junitxml=test-results.xml
+      
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: nightly-test-results
+          path: psy_line/test-results.xml
+      
+      - name: Test Summary
+        if: always()
+        run: |
+          echo "=== Nightly Build Summary ==="
+          echo "Date: $(date)"
+          echo "Commit: ${{ github.sha }}"
+          echo "Status: ${{ job.status }}"
+
+  # ============================================
+  # 依赖检查 - 每周运行
+  # ============================================
+  dependency-check:
+    name: 📦 Dependency Check
+    if: github.event.schedule == '0 3 * * 1' || github.event.inputs.job_type == 'dependency-check' || github.event.inputs.job_type == 'all'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      
+      - name: Install dependencies
+        run: |
+          cd psy_line
+          pip install -e ".[dev]"
+          pip install pip-audit safety
+      
+      - name: Check for outdated packages
+        run: |
+          cd psy_line
+          echo "=== Outdated Packages ==="
+          pip list --outdated --format=columns || true
+      
+      - name: Run pip-audit (security vulnerabilities)
+        run: |
+          cd psy_line
+          echo "=== Security Audit (pip-audit) ==="
+          pip-audit --desc --fix --dry-run || true
+      
+      - name: Run safety check
+        run: |
+          cd psy_line
+          echo "=== Safety Check ==="
+          safety check --full-report || true
+      
+      - name: Generate dependency report
+        if: always()
+        run: |
+          cd psy_line
+          echo "# Dependency Report - $(date)" > dependency-report.md
+          echo "" >> dependency-report.md
+          echo "## Outdated Packages" >> dependency-report.md
+          pip list --outdated --format=markdown >> dependency-report.md || true
+          echo "" >> dependency-report.md
+          echo "## Security Vulnerabilities" >> dependency-report.md
+          pip-audit --desc 2>&1 >> dependency-report.md || true
+      
+      - name: Upload dependency report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dependency-report
+          path: psy_line/dependency-report.md
+
+  # ============================================
+  # 安全审计 - 每月运行
+  # ============================================
+  security-audit:
+    name: 🔒 Security Audit
+    if: github.event.schedule == '0 4 1 * *' || github.event.inputs.job_type == 'security-audit' || github.event.inputs.job_type == 'all'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      
+      - name: Install dependencies
+        run: |
+          cd psy_line
+          pip install -e ".[dev]"
+          pip install bandit safety pip-audit
+      
+      - name: Run Bandit (Python security linter)
+        run: |
+          cd psy_line
+          echo "=== Bandit Security Scan ==="
+          bandit -r src/ -f json -o bandit-report.json --skip B101,B601 || true
+          bandit -r src/ -f txt --skip B101,B601 || true
+      
+      - name: Run safety check
+        run: |
+          cd psy_line
+          echo "=== Safety Vulnerability Check ==="
+          safety check --full-report --json > safety-report.json || true
+          safety check --full-report || true
+      
+      - name: Run pip-audit
+        run: |
+          cd psy_line
+          echo "=== pip-audit Check ==="
+          pip-audit --desc --format=json > pip-audit-report.json || true
+          pip-audit --desc || true
+      
+      - name: Check for secrets in code
+        run: |
+          echo "=== Secret Detection ==="
+          # Simple grep for common secret patterns
+          cd psy_line
+          grep -r "api_key\|secret\|password\|token" src/ --include="*.py" | grep -v "test\|mock\|example\|config\|#" || echo "No hardcoded secrets found"
+      
+      - name: Generate security report
+        if: always()
+        run: |
+          cd psy_line
+          echo "# Security Audit Report - $(date)" > security-report.md
+          echo "" >> security-report.md
+          echo "## Bandit Results" >> security-report.md
+          cat bandit-report.json >> security-report.md 2>/dev/null || echo "No Bandit report" >> security-report.md
+          echo "" >> security-report.md
+          echo "## Safety Results" >> security-report.md
+          cat safety-report.json >> security-report.md 2>/dev/null || echo "No Safety report" >> security-report.md
+      
+      - name: Upload security reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: security-reports
+          path: |
+            psy_line/bandit-report.json
+            psy_line/safety-report.json
+            psy_line/pip-audit-report.json
+            psy_line/security-report.md
+
+  # ============================================
+  # 通知汇总
+  # ============================================
+  notify:
+    name: 📊 Maintenance Summary
+    runs-on: ubuntu-latest
+    needs: [nightly-build, dependency-check, security-audit]
+    if: always()
+    steps:
+      - name: Generate summary
+        run: |
+          echo "# Maintenance Summary - $(date)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Job Results" >> $GITHUB_STEP_SUMMARY
+          echo "| Job | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| 🌙 Nightly Build | ${{ needs.nightly-build.result || 'skipped' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 📦 Dependency Check | ${{ needs.dependency-check.result || 'skipped' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🔒 Security Audit | ${{ needs.security-audit.result || 'skipped' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "---" >> $GITHUB_STEP_SUMMARY
+          echo "*Automated maintenance by PSY_line CI/CD*" >> $GITHUB_STEP_SUMMARY
